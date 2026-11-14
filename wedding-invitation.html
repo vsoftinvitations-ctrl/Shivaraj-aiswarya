@@ -582,30 +582,29 @@
       overflow: hidden;
       box-sizing: border-box;
       will-change: transform, opacity;
+      transform: translate3d(0, 0, 0);
+      -webkit-transform: translate3d(0, 0, 0);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
       cursor: pointer;
     }
 
     #hero.leaving {
       pointer-events: none;
-      animation: heroOpenSlowly 1.8s cubic-bezier(0.65, 0, 0.25, 1) forwards;
+      animation: heroCurtainOpen 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
-    @keyframes heroOpenSlowly {
+    @keyframes heroCurtainOpen {
       0% {
         opacity: 1;
-        transform: translateY(0) scale(1);
-        filter: blur(0px);
+        transform: translate3d(0, 0, 0);
       }
-
-      40% {
-        opacity: 0.95;
-        transform: translateY(-8px) scale(1.01);
+      35% {
+        opacity: 1;
       }
-
       100% {
         opacity: 0;
-        transform: translateY(-100%) scale(1.03);
-        filter: blur(4px);
+        transform: translate3d(0, -100%, 0);
       }
     }
 
@@ -614,14 +613,17 @@
       inset: 0;
       background-size: cover;
       background-position: center;
-      filter: blur(3px) brightness(0.72);
-      transform: scale(1.08);
+      filter: blur(2.5px) brightness(0.72);
+      transform: translate3d(0, 0, 0) scale(1.08);
+      -webkit-transform: translate3d(0, 0, 0) scale(1.08);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
       z-index: -2;
       transition: transform 6s ease-out;
     }
 
     #hero:hover .hero-bg {
-      transform: scale(1.12);
+      transform: translate3d(0, 0, 0) scale(1.12);
     }
 
     #hero::before {
@@ -638,12 +640,13 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      transition: opacity 0.6s ease, transform 0.6s ease;
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      will-change: opacity, transform;
     }
 
     .hero-initial.hide {
       opacity: 0;
-      transform: scale(0.96);
+      transform: scale(0.96) translateY(-8px);
       pointer-events: none;
     }
 
@@ -666,6 +669,14 @@
       position: relative;
       width: 100%;
       max-width: 580px;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      will-change: opacity;
+    }
+
+    .hero-writing.active {
+      display: flex;
+      opacity: 1;
     }
 
     .hero-writing-label {
@@ -694,17 +705,17 @@
     }
 
     .hero-writing.step-groom .script-groom .script-text {
-      animation: writeGroom 1.4s cubic-bezier(.35, 0, .25, 1) forwards;
+      animation: writeGroom 1.25s cubic-bezier(.35, 0, .25, 1) forwards;
     }
 
     .hero-writing.step-groom .script-groom .calligraphy-spark {
-      animation: sparkMoveGroom 1.4s cubic-bezier(.35, 0, .25, 1) forwards;
+      animation: sparkMoveGroom 1.25s cubic-bezier(.35, 0, .25, 1) forwards;
     }
 
     .hero-writing .script-amp .amp {
       opacity: 0;
       transform: scale(.6) rotate(-8deg);
-      transition: opacity 0.5s cubic-bezier(.34, 1.56, .64, 1), transform 0.5s cubic-bezier(.34, 1.56, .64, 1);
+      transition: opacity 0.45s cubic-bezier(.34, 1.56, .64, 1), transform 0.45s cubic-bezier(.34, 1.56, .64, 1);
     }
 
     .hero-writing.step-amp .script-amp .amp {
@@ -718,11 +729,11 @@
     }
 
     .hero-writing.step-bride .script-bride .script-text {
-      animation: writeBride 1.4s cubic-bezier(.35, 0, .25, 1) forwards;
+      animation: writeBride 1.25s cubic-bezier(.35, 0, .25, 1) forwards;
     }
 
     .hero-writing.step-bride .script-bride .calligraphy-spark {
-      animation: sparkMoveBride 1.4s cubic-bezier(.35, 0, .25, 1) forwards;
+      animation: sparkMoveBride 1.25s cubic-bezier(.35, 0, .25, 1) forwards;
     }
 
     .hero-writing .flourish-path {
@@ -731,7 +742,7 @@
     }
 
     .hero-writing.step-flourish .flourish-path {
-      animation: drawFlourish 0.9s cubic-bezier(.25, 1, .5, 1) forwards;
+      animation: drawFlourish 0.8s cubic-bezier(.25, 1, .5, 1) forwards;
     }
 
     #hero .date {
@@ -1566,122 +1577,149 @@
     /* ===== Scroll reveal ===== */
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) } }), { threshold: .15, rootMargin: '0px 0px -6% 0px' });
 
-    /* ===== Prelude: guest taps "Tap to Open" to trigger Brittany writings, then opens slowly ===== */
-    history.scrollRestoration = 'manual'; scrollTo(0, 0);
-    document.documentElement.style.overflow = 'hidden'; document.body.style.overflow = 'hidden';
+    /* ===== Prelude & Smooth Opening Sequence ===== */
+    history.scrollRestoration = 'manual';
+    scrollTo(0, 0);
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
     let openingStarted = false;
+    let sequenceStartTime = 0;
     let opened = false;
+    let sequenceTimeouts = [];
+
+    function clearSequenceTimeouts() {
+      sequenceTimeouts.forEach(t => clearTimeout(t));
+      sequenceTimeouts = [];
+    }
+
+    function addStepTimeout(fn, delay) {
+      const id = setTimeout(fn, delay);
+      sequenceTimeouts.push(id);
+      return id;
+    }
 
     function startOpeningSequence() {
       if (openingStarted) return;
       openingStarted = true;
+      sequenceStartTime = Date.now();
 
-      // 1. Play background music on guest tap
       playAudio();
 
       const heroInitial = document.getElementById('hero-initial');
       const heroWriting = document.getElementById('hero-writing');
 
-      // 2. Hide initial prompt smoothly
       if (heroInitial) {
         heroInitial.classList.add('hide');
       }
 
-      // 3. Reveal writing container and orchestrate chronological flow:
-      setTimeout(() => {
+      addStepTimeout(() => {
         if (heroInitial) heroInitial.style.display = 'none';
         if (heroWriting) {
-          heroWriting.style.display = 'flex';
-          void heroWriting.offsetWidth;
+          heroWriting.classList.add('active');
 
           // Step 1: "Together with their families" fades down
-          setTimeout(() => {
+          addStepTimeout(() => {
             heroWriting.classList.add('step-label');
-          }, 150);
+          }, 80);
 
           // Step 2: "Shivaraju" writes in Brittany Signature
-          setTimeout(() => {
+          addStepTimeout(() => {
             heroWriting.classList.add('step-groom');
-          }, 1000);
+          }, 450);
 
           // Step 3: "&" reveals
-          setTimeout(() => {
+          addStepTimeout(() => {
             heroWriting.classList.add('step-amp');
-          }, 2500);
+          }, 1650);
 
           // Step 4: "Aishwarya" writes in Brittany Signature
-          setTimeout(() => {
+          addStepTimeout(() => {
             heroWriting.classList.add('step-bride');
-          }, 3100);
+          }, 2050);
 
           // Step 5: Golden flourish draws under names
-          setTimeout(() => {
+          addStepTimeout(() => {
             heroWriting.classList.add('step-flourish');
-          }, 4600);
+          }, 3250);
 
           // Step 6: "Sunday" & "06 December 2026" rises into view
-          setTimeout(() => {
+          addStepTimeout(() => {
             heroWriting.classList.add('step-date');
-          }, 5500);
+          }, 3900);
 
-          // Step 7: Pause to appreciate completed view, then open invitation slowly
-          setTimeout(() => {
+          // Step 7: Smooth transition to main invitation
+          addStepTimeout(() => {
             openInviteSlowly();
-          }, 8200);
+          }, 5600);
         }
-      }, 350);
+      }, 200);
     }
 
     function openInviteSlowly() {
       if (opened) return;
       opened = true;
+      clearSequenceTimeouts();
 
       const hero = document.getElementById('hero');
-      if (hero) hero.classList.add('leaving');
+      if (hero) {
+        hero.classList.add('leaving');
+        // Once slide-up completes, remove #hero from rendering pipeline
+        setTimeout(() => {
+          hero.style.display = 'none';
+        }, 1000);
+      }
 
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
-      scrollTo(0, 0);
 
-      document.querySelectorAll('.r').forEach(el => io.observe(el));
-
-      setTimeout(() => {
-        const inames = document.querySelector('#intro .intro-names');
-        if (inames) inames.classList.add('in');
-      }, 500);
+      // Initialize scroll reveal smoothly
+      requestAnimationFrame(() => {
+        document.querySelectorAll('.r').forEach(el => io.observe(el));
+      });
     }
 
-    /* ===== Universal Tap Handling (Works across all mobile devices, tablets & browsers) ===== */
-    function triggerOpen(e) {
+    /* ===== Universal Tap Handling (Debounced, smooth on touch & mouse) ===== */
+    let lastTapTime = 0;
+    function handleOpenTrigger(e) {
+      const now = Date.now();
+      if (now - lastTapTime < 400) {
+        if (e && e.cancelable) e.preventDefault();
+        return;
+      }
+      lastTapTime = now;
+
       if (e) {
+        if (e.stopPropagation) e.stopPropagation();
         if (e.cancelable && e.type !== 'touchmove') {
           e.preventDefault();
         }
       }
+
       if (!openingStarted) {
         startOpeningSequence();
-      } else if (!opened) {
+      } else if (!opened && (now - sequenceStartTime > 1200)) {
+        // If guest taps after writing has begun, allow advancing cleanly
         openInviteSlowly();
       }
     }
 
     const btnOpen = document.getElementById('btn-open');
     if (btnOpen) {
-      btnOpen.addEventListener('click', triggerOpen);
-      btnOpen.addEventListener('touchend', triggerOpen, { passive: false });
+      btnOpen.addEventListener('click', handleOpenTrigger);
+      btnOpen.addEventListener('touchend', handleOpenTrigger, { passive: false });
     }
 
     const heroEl = document.getElementById('hero');
     if (heroEl) {
-      // Tapping anywhere on the screen (photo, background, text) opens the invitation
       heroEl.addEventListener('click', e => {
-        if (e.target !== btnOpen) triggerOpen(e);
+        if (e.target !== btnOpen) handleOpenTrigger(e);
       });
       heroEl.addEventListener('touchend', e => {
-        if (e.target !== btnOpen && !openingStarted) triggerOpen(e);
+        if (e.target !== btnOpen) handleOpenTrigger(e);
       }, { passive: false });
 
-      // Swipe up support: if guest attempts to scroll down, naturally open the invitation
+      // Swipe up support: if guest scrolls/swipes up, open smoothly
       let touchStartY = 0;
       heroEl.addEventListener('touchstart', e => {
         if (e.touches && e.touches[0]) touchStartY = e.touches[0].clientY;
@@ -1690,8 +1728,8 @@
       heroEl.addEventListener('touchmove', e => {
         if (e.touches && e.touches[0]) {
           const deltaY = touchStartY - e.touches[0].clientY;
-          if (Math.abs(deltaY) > 25 && !openingStarted) {
-            triggerOpen(e);
+          if (deltaY > 25) {
+            handleOpenTrigger(e);
           }
         }
       }, { passive: true });
